@@ -7,7 +7,8 @@ const STATEMENTS = [
     days INTEGER NOT NULL DEFAULT 3,
     tips TEXT NOT NULL DEFAULT '{}',
     version INTEGER NOT NULL DEFAULT 0,
-    created_at INTEGER NOT NULL
+    created_at INTEGER NOT NULL,
+    start_date TEXT
   )`,
   `CREATE TABLE IF NOT EXISTS items (
     id TEXT PRIMARY KEY,
@@ -22,24 +23,31 @@ const STATEMENTS = [
     added_by TEXT NOT NULL DEFAULT '',
     time TEXT,
     kind TEXT NOT NULL DEFAULT 'place',
-    fixed INTEGER NOT NULL DEFAULT 0
+    fixed INTEGER NOT NULL DEFAULT 0,
+    cost REAL,
+    geo_tried INTEGER NOT NULL DEFAULT 0
   )`,
   'CREATE INDEX IF NOT EXISTS items_trip ON items(trip_id, day, position)',
 ];
 
 // 舊版資料庫(沒有這些欄位)自動補上
 const ADDED_COLUMNS = [
-  ['time', 'TEXT'],
-  ['kind', "TEXT NOT NULL DEFAULT 'place'"],
-  ['fixed', 'INTEGER NOT NULL DEFAULT 0'],
+  ['items', 'time', 'TEXT'],
+  ['items', 'kind', "TEXT NOT NULL DEFAULT 'place'"],
+  ['items', 'fixed', 'INTEGER NOT NULL DEFAULT 0'],
+  ['items', 'cost', 'REAL'],
+  ['items', 'geo_tried', 'INTEGER NOT NULL DEFAULT 0'],
+  ['trips', 'start_date', 'TEXT'],
 ];
 
 async function init(env) {
   await env.DB.batch(STATEMENTS.map((s) => env.DB.prepare(s)));
-  const { results } = await env.DB.prepare("SELECT name FROM pragma_table_info('items')").all();
-  const have = new Set(results.map((r) => r.name));
-  for (const [name, def] of ADDED_COLUMNS) {
-    if (!have.has(name)) await env.DB.prepare(`ALTER TABLE items ADD COLUMN ${name} ${def}`).run();
+  for (const table of ['items', 'trips']) {
+    const { results } = await env.DB.prepare(`SELECT name FROM pragma_table_info('${table}')`).all();
+    const have = new Set(results.map((r) => r.name));
+    for (const [t, name, def] of ADDED_COLUMNS) {
+      if (t === table && !have.has(name)) await env.DB.prepare(`ALTER TABLE ${table} ADD COLUMN ${name} ${def}`).run();
+    }
   }
 }
 
