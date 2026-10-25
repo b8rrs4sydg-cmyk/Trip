@@ -5,6 +5,7 @@ import { insertIndex, mergeFixed } from './schedule.js';
 import { findDay, findTime, hasScheduleCue, parseNaturalLanguage, KINDS } from './nl.js';
 import { geocode } from './geocode.js';
 import { suggestPlaces } from './suggest.js';
+import { computeRoute, MODES, validPoint, sanitizeDeparture } from './route.js';
 
 const MAX_ITEMS = 80;
 const ALPHABET = 'abcdefghijkmnpqrstuvwxyz23456789'; // 去掉容易混淆的 l o 0 1
@@ -262,6 +263,26 @@ async function handle(request, env) {
     const list = await suggestPlaces(env, { tripName: trip.name, days: trip.days, names: results.map((r) => r.name), query: clean(body.query, 80) });
     if (!list.length) return fail('AI 暫時想不出來,請稍後再試;旅行名稱寫上目的地(例如「東京五日遊」)會更準', 503);
     return json({ suggestions: list });
+  }
+
+  // 移動時間(即時路況)。結果短暫快取:同一對地點、同一種交通方式 10 分鐘內共用,省 API 額度
+  if (parts[3] === 'route' && method === 'POST') {
+    const body = await request.json().catch(() => ({}));
+    const { from, to } = body;
+    if (!validPoint(from) || !validPoint(to)) return fail('座標格式不對');
+    const mode = MODES.includes(body.mode) ? body.mode : 'transit';
+    const departure = sanitizeDeparture(body.depart);
+    const r4 = (n) => n.toFixed(4);
+    const key = new Request(`https://route-cache.invalid/${body.osmOnly === true ? 'osm' : 'g'}/${mode}/${r4(from.lat)},${r4(from.lng)}/${r4(to.lat)},${r4(to.lng)}/${departure ? departure.slice(0, 16) : 'now'}`);
+    const cache = caches.default;
+    const hit = await cache.match(key);
+    if (hit) return json(await hit.json());
+    const useGoogle = body.osmOnly !== true;
+    const result = await computeRoute(env, { from, to, mode, departure, useGoogle });
+    if (result.source !== 'none') {
+      await cache.put(key, new Response(JSON.stringify(result), { headers: { 'cache-control': `max-age=${departure || result.source === 'osrm' ? 3600 : 600}` } }));
+    }
+    return json(result);
   }
 
   // AI 排行程:指定過天數的項目(航班等)不動,其餘交給 AI 分天

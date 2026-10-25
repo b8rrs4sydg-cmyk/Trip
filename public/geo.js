@@ -14,12 +14,16 @@ export function haversineKm(a, b) {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-// 沒有路網資料,所以只是「估算」:直線距離乘 1.3 當路程;
-// 1.2 公里內視為步行(每分鐘 75 公尺),再遠視為大眾運輸/開車(時速約 28 公里,另加 8 分鐘等候)。
-export function estimateTravel(a, b) {
+// 沒有路網資料時的「估算」:直線距離乘 1.3 當路程。
+// auto:1.2 公里內視為步行(每分鐘 75 公尺),再遠視為大眾運輸(時速約 28 公里,另加 8 分鐘等候);
+// 也可以指定 walk / transit / drive(開車時速約 35 公里,另加 3 分鐘上下車)。
+export function estimateTravel(a, b, mode = 'auto') {
   const road = haversineKm(a, b) * 1.3;
-  if (road <= 1.2) return { mode: 'walk', km: road, min: Math.max(1, Math.round((road * 1000) / 75)) };
-  return { mode: 'transit', km: road, min: Math.round(8 + (road / 28) * 60) };
+  const m = mode === 'auto' ? (road <= 1.2 ? 'walk' : 'transit') : mode;
+  const min = m === 'walk' ? Math.max(1, Math.round((road * 1000) / 75))
+    : m === 'drive' ? Math.round(3 + (road / 35) * 60)
+    : Math.round(8 + (road / 28) * 60);
+  return { mode: m, km: road, min };
 }
 
 export function fmtKm(km) {
@@ -34,7 +38,7 @@ export function fmtMin(min) {
 
 export function directionsUrl(a, b, mode) {
   const p = (x) => `${x.lat},${x.lng}`;
-  return `https://www.google.com/maps/dir/?api=1&origin=${p(a)}&destination=${p(b)}&travelmode=${mode === 'walk' ? 'walking' : 'transit'}`;
+  return `https://www.google.com/maps/dir/?api=1&origin=${p(a)}&destination=${p(b)}&travelmode=${{ walk: 'walking', drive: 'driving' }[mode] || 'transit'}`;
 }
 
 export const money = (n) => `¥${Math.round(Number(n)).toLocaleString('en-US')}`;
@@ -65,4 +69,42 @@ export function tripText(trip) {
     }
   }
   return lines.join('\n');
+}
+
+// ---- 機票 / 飯店:沒有免費的即時搜尋 API,所以帶入日期與路線,開外部網站搜尋 ----
+
+// 「航班:台灣 → 東京」→ { from: '台灣', to: '東京' }
+export function parseFlightTitle(name) {
+  const m = /^航班\s*[:：]\s*(.+?)\s*(?:→|->|=>|至)\s*(.+)$/.exec(String(name));
+  return m ? { from: m[1].trim(), to: m[2].trim() } : null;
+}
+
+// 第 day 天的日期(YYYY-MM-DD);沒有出發日期或 day 不是 1 以上就回 null
+export function isoDate(start, day) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(start || '');
+  if (!m || !(day >= 1)) return null;
+  return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3] + day - 1)).toISOString().slice(0, 10);
+}
+
+export function flightSearchUrl(item, start) {
+  const f = parseFlightTitle(item.name);
+  const date = isoDate(start, item.day);
+  const q = `${f ? `從${f.from}到${f.to}的機票` : `${item.name} 機票`}${date ? ` ${date}` : ''}`;
+  return `https://www.google.com/travel/flights?hl=zh-TW&q=${encodeURIComponent(q)}`;
+}
+
+export function hotelSearchUrl(item, start) {
+  const name = String(item.name).replace(/^(入住|住宿|住|check[- ]?in)\s*/i, '').trim() || item.name;
+  const p = new URLSearchParams({ ss: name });
+  const inD = isoDate(start, item.day);
+  if (inD) { p.set('checkin', inD); p.set('checkout', isoDate(start, item.day + 1)); }
+  return `https://www.booking.com/searchresults.zh-tw.html?${p}`;
+}
+
+// 出發時間字串(RFC3339)。沒有時區資料庫,用經度粗估時區(日本 139° → +09:00、台灣 121° → +08:00)。
+export function departureISO(date, time, lng) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return null;
+  const t = /^([01]?\d|2[0-3]):[0-5]\d$/.test(time || '') ? time.padStart(5, '0') : '09:00';
+  const off = Math.max(-12, Math.min(14, Math.round(lng / 15)));
+  return `${date}T${t}:00${off < 0 ? '-' : '+'}${String(Math.abs(off)).padStart(2, '0')}:00`;
 }

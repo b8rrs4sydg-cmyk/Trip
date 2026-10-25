@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { haversineKm, estimateTravel, fmtKm, fmtMin, dayDateLabel, tripText, dayColor, directionsUrl, money } from '../public/geo.js';
+import { haversineKm, estimateTravel, fmtKm, fmtMin, dayDateLabel, tripText, dayColor, directionsUrl, money, parseFlightTitle, isoDate, flightSearchUrl, hotelSearchUrl } from '../public/geo.js';
 import { queryFromTitle, viewbox, geocode } from '../src/geocode.js';
 import { normalizeSuggestions, suggestPlaces } from '../src/suggest.js';
 
@@ -21,6 +21,15 @@ test('estimateTravel:近的走路、遠的大眾運輸', () => {
   const far = estimateTravel(asakusa, kyoto);
   assert.equal(far.mode, 'transit');
   assert.ok(far.min > 300);
+});
+
+test('estimateTravel 可指定交通方式', () => {
+  assert.equal(estimateTravel(asakusa, kyoto, 'walk').mode, 'walk');
+  assert.equal(estimateTravel(asakusa, skytree, 'transit').mode, 'transit');
+  const drive = estimateTravel(asakusa, skytree, 'drive');
+  assert.equal(drive.mode, 'drive');
+  assert.ok(drive.min >= 3 && drive.min < 15);
+  assert.match(directionsUrl(asakusa, skytree, 'drive'), /travelmode=driving/);
 });
 
 test('格式化', () => {
@@ -96,4 +105,27 @@ test('suggestPlaces:AI 失敗回空陣列', async () => {
   assert.deepEqual(await suggestPlaces(env, { tripName: 'x', days: 3, names: [] }), []);
   const ok = { AI_MODEL: 'm', AI: { run: async () => ({ response: { suggestions: [{ name: '上野公園', reason: '賞花', kind: 'place' }] } }) } };
   assert.equal((await suggestPlaces(ok, { tripName: 'x', days: 3, names: [] }))[0].name, '上野公園');
+});
+
+test('parseFlightTitle / isoDate', () => {
+  assert.deepEqual(parseFlightTitle('航班:台灣 → 東京'), { from: '台灣', to: '東京' });
+  assert.deepEqual(parseFlightTitle('航班:東京 → 台灣'), { from: '東京', to: '台灣' });
+  assert.equal(parseFlightTitle('淺草寺'), null);
+  assert.equal(isoDate('2026-11-29', 1), '2026-11-29');
+  assert.equal(isoDate('2026-11-29', 3), '2026-12-01');
+  assert.equal(isoDate('', 1), null);
+  assert.equal(isoDate('2026-11-29', 0), null);
+});
+
+test('機票與飯店搜尋連結帶入路線與日期', () => {
+  const f = new URL(flightSearchUrl({ name: '航班:台灣 → 東京', day: 1 }, '2026-11-20'));
+  assert.equal(f.hostname, 'www.google.com');
+  assert.equal(f.searchParams.get('q'), '從台灣到東京的機票 2026-11-20');
+  assert.equal(new URL(flightSearchUrl({ name: '航班:台灣 → 東京', day: 1 }, null)).searchParams.get('q'), '從台灣到東京的機票');
+  const h = new URL(hotelSearchUrl({ name: '入住新宿王子飯店', day: 2 }, '2026-11-20'));
+  assert.equal(h.hostname, 'www.booking.com');
+  assert.equal(h.searchParams.get('ss'), '新宿王子飯店');
+  assert.equal(h.searchParams.get('checkin'), '2026-11-21');
+  assert.equal(h.searchParams.get('checkout'), '2026-11-22');
+  assert.equal(new URL(hotelSearchUrl({ name: '某飯店', day: 0 }, '2026-11-20')).searchParams.has('checkin'), false);
 });
