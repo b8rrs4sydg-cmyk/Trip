@@ -4,15 +4,34 @@
 
 給家中長輩用的簡單旅遊規劃網頁:把 Google 地圖的分享連結貼進來,AI 幫忙分天排順序,家人(約 5 人)可同時編輯。
 
-跑在 Cloudflare 上:Workers(API 與網頁)、D1(資料庫)、Workers AI(排行程)。不需要 Google API,也不需要自己申請任何金鑰。
+跑在 Cloudflare 上:Workers(API 與網頁)、D1(資料庫)、Workers AI(排行程)。基本功能不需要任何金鑰;只有「即時路況」(選用)需要自己的 Google 金鑰。
 
 ## 一鍵部署
 
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/b8rrs4sydg-cmyk/Trip)
+
+直接連結(同上):<https://deploy.workers.cloudflare.com/?url=https://github.com/b8rrs4sydg-cmyk/Trip>
+
 1. 按上面的 **Deploy to Cloudflare** 按鈕,登入 Cloudflare 帳號並授權 GitHub。
-2. 設定頁面直接按「Create and deploy」。資料庫(D1)和 AI 會自動建立並綁定,資料表第一次使用時自動建立。
-3. 部署完會得到網址 `https://family-trip.<你的帳號>.workers.dev`,打開就能用。
+2. 在設定頁面確認三個名字,**都要是你帳號裡還沒用過的**,否則會建立失敗:
+   - **GitHub 儲存庫名稱**:按鈕會在你的 GitHub 帳號建立一份複本,例如 `family-trip-app`(不能和已有的儲存庫同名,包括原本的 `Trip`)。
+   - **Worker 名稱**:預設 `family-trip`,決定網址 `https://<Worker 名稱>.<你的帳號>.workers.dev`。如果舊的 Worker 還在,請改名或先刪除。
+   - **資料庫名稱**:預設 `family-trip-db`。如果舊的資料庫還在,請改名(新名字會是一個全新、空的資料庫)。
+3. 按「Create and deploy」。資料庫(D1)和 AI 會自動建立並綁定,資料表第一次使用時自動建立,不需要跑任何 migration。
+4. 建置完成後打開網址就能用。第一次開啟會自動建好資料表。
 
 > 按鈕需要這個 GitHub 儲存庫是**公開**的。程式裡沒有任何金鑰或個人資料,可以放心公開。
+
+### 之後怎麼更新
+
+按鈕建立的是一份**獨立的複本**,不是 fork,所以這個儲存庫(`Trip`)有新版時,你的複本不會自動跟著更新。要更新時任選一種:
+
+- 把 `Trip` 最新的檔案複製到你的複本儲存庫(**保留你複本裡的 `wrangler.jsonc`**,裡面有你資料庫的 ID),推送到 `main`,Cloudflare 會自動重新建置。
+- 或刪掉舊的 Worker,重新按一次上面的按鈕(新的資料庫是空的,舊行程不會帶過去)。
+
+### 選用:即時路況
+
+不設定也能用。要讓移動時間包含即時路況,請看下面「啟用即時路況」。
 
 ## 功能
 
