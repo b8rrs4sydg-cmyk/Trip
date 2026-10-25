@@ -2,104 +2,241 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#25406b">
 <title>家人旅行規劃</title>
 <style>
   :root {
-    --bg: #fbf7f0; --card: #ffffff; --ink: #1f1a14; --sub: #6b5f52; --line: #e3d9c8;
-    --accent: #c2410c; --accent-ink: #ffffff; --soft: #fde8d8; --ok: #166534; --err: #b91c1c;
+    --bg: #f5efe3; --paper: #fffdf8; --ink: #231f1a; --sub: #6a5f53; --line: #e5dac8;
+    --indigo: #25406b; --indigo-2: #3a5a8c; --on-indigo: #ffffff;
+    --red: #c93d27; --on-red: #ffffff; --soft: #f9e7d6; --soft-ink: #6b3a12;
+    --shadow: 0 1px 2px rgba(60, 40, 10, .08), 0 6px 18px rgba(60, 40, 10, .08);
+    --k-flight: #2f6fb0; --k-transport: #2f8a6b; --k-hotel: #8a5aa8; --k-meal: #c9702a; --k-place: #c93d27; --k-other: #6a5f53;
+    --radius: 18px;
   }
   @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #17130f; --card: #231d17; --ink: #f5ede1; --sub: #b8a998; --line: #3a3027;
-      --accent: #fb923c; --accent-ink: #1a1008; --soft: #3a2615; --ok: #86efac; --err: #fca5a5;
+    :root {
+      --bg: #12161d; --paper: #1c222c; --ink: #f2ede4; --sub: #b4a898; --line: #323a47;
+      --indigo: #1d2f4d; --indigo-2: #8fb4ea; --on-indigo: #f4f7fc;
+      --red: #ef6a52; --on-red: #1d0a05; --soft: #3a2a1a; --soft-ink: #f5d9b8;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 6px 18px rgba(0, 0, 0, .35);
+      --k-flight: #7fb2ea; --k-transport: #6fcaa5; --k-hotel: #c9a3e3; --k-meal: #f0a769; --k-place: #ef6a52; --k-other: #b4a898;
     }
   }
   * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 76px; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { animation: none !important; transition: none !important; } }
   body { margin: 0; background: var(--bg); color: var(--ink);
-    font: 20px/1.5 -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif; }
-  main { max-width: 720px; margin: 0 auto; padding: 16px; }
-  h1 { font-size: 28px; margin: 8px 0 4px; }
-  h2 { font-size: 24px; margin: 28px 0 8px; }
-  p { margin: 6px 0; }
-  .sub { color: var(--sub); font-size: 18px; }
-  button, select, input, textarea { font: inherit; color: inherit; }
-  button { min-height: 52px; padding: 8px 18px; border-radius: 12px; border: 2px solid var(--line);
-    background: var(--card); cursor: pointer; }
-  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
-  button.small { min-height: 44px; padding: 4px 12px; font-size: 18px; }
-  button:disabled { opacity: .5; cursor: default; }
-  button:focus-visible, a:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-visible {
-    outline: 3px solid var(--accent); outline-offset: 2px; }
-  input, textarea, select { width: 100%; padding: 12px; border-radius: 12px; border: 2px solid var(--line);
-    background: var(--card); }
-  textarea { min-height: 84px; resize: vertical; }
-  label { display: block; margin: 14px 0 4px; font-weight: 700; }
-  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-  .row > * { flex: 0 0 auto; }
-  .grow { flex: 1 1 200px !important; }
-  .card { background: var(--card); border: 2px solid var(--line); border-radius: 16px; padding: 14px; margin: 10px 0; }
-  .item-name { font-size: 22px; font-weight: 700; word-break: break-word; }
-  .note { background: var(--soft); border-radius: 10px; padding: 8px 10px; margin-top: 8px; }
-  .tip { background: var(--soft); border-radius: 10px; padding: 8px 12px; }
-  .empty { color: var(--sub); padding: 12px 0; }
-  a.nav { display: inline-flex; align-items: center; min-height: 44px; padding: 4px 14px; border-radius: 12px;
-    background: var(--accent); color: var(--accent-ink); font-weight: 700; text-decoration: none; font-size: 18px; }
-  #toast { position: fixed; left: 16px; right: 16px; bottom: 16px; max-width: 688px; margin: 0 auto;
-    padding: 14px 18px; border-radius: 14px; background: var(--ink); color: var(--bg); display: none; z-index: 9; }
-  #toast.err { background: var(--err); color: #fff; }
+    font: 20px/1.55 -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    -webkit-text-size-adjust: 100%; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 16px 56px; }
   .hidden { display: none !important; }
-  ul.recent { list-style: none; padding: 0; margin: 0; }
-  ul.recent li { margin: 8px 0; }
-  ul.recent a { display: block; padding: 14px; border: 2px solid var(--line); border-radius: 14px;
-    background: var(--card); color: inherit; text-decoration: none; font-weight: 700; }
+  h1, h2, h3, p { margin: 0; }
+  button, select, input, textarea { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid var(--k-flight); outline-offset: 2px; }
+
+  /* ---------- 按鈕 ---------- */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px;
+    padding: 8px 20px; border-radius: 14px; border: 2px solid var(--line); background: var(--paper);
+    font-weight: 700; cursor: pointer; text-decoration: none; color: var(--ink); transition: transform .08s, box-shadow .15s; }
+  .btn:active { transform: scale(.97); }
+  .btn.primary { background: var(--indigo); border-color: var(--indigo); color: var(--on-indigo); }
+  .btn.hot { background: var(--red); border-color: var(--red); color: var(--on-red); }
+  .btn.ghost { background: rgba(255, 255, 255, .14); border-color: rgba(255, 255, 255, .45); color: var(--on-indigo); }
+  .btn.small { min-height: 46px; padding: 4px 14px; font-size: 18px; border-radius: 12px; }
+  .btn.icon { min-width: 46px; padding: 4px 8px; }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .btn.block { width: 100%; }
+
+  /* ---------- 首頁 ---------- */
+  .hero { background: linear-gradient(160deg, var(--indigo) 0%, var(--indigo-2) 140%); color: var(--on-indigo);
+    margin: 0 -16px; padding: calc(28px + env(safe-area-inset-top)) 20px 36px; position: relative; overflow: hidden; }
+  .hero::before { content: ""; position: absolute; inset: 0; opacity: .12; pointer-events: none;
+    background:
+      radial-gradient(circle at 50% 100%, transparent 0 24px, #fff 25px 27px, transparent 28px 40px, #fff 41px 43px, transparent 44px) 0 0 / 64px 32px;
+    mask-image: linear-gradient(to top, #000, transparent 85%); -webkit-mask-image: linear-gradient(to top, #000, transparent 85%); }
+  .hero > * { position: relative; }
+  .eyebrow { font-size: 16px; letter-spacing: .12em; opacity: .85; }
+  .hero h1 { font-size: 32px; line-height: 1.25; margin: 6px 0 4px; }
+  .hero p { opacity: .9; font-size: 18px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; background: rgba(255, 255, 255, .16); border-radius: 999px;
+    padding: 4px 14px; font-size: 17px; }
+  .hero .row { margin-top: 18px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .card { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; }
+  .pull { margin-top: -22px; position: relative; }
+  label.f { display: block; font-weight: 700; margin: 14px 0 6px; }
+  .field { width: 100%; padding: 13px 14px; border-radius: 14px; border: 2px solid var(--line); background: var(--bg); }
+  .field:focus { border-color: var(--indigo-2); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--indigo-2) 30%, transparent); }
+  textarea.field { min-height: 92px; resize: vertical; }
+  .section-title { font-size: 22px; margin: 28px 2px 10px; }
+  .recent a { display: flex; align-items: center; gap: 12px; padding: 14px 16px; margin-top: 10px; border-radius: 16px;
+    background: var(--paper); border: 1px solid var(--line); color: inherit; text-decoration: none; font-weight: 700; box-shadow: var(--shadow); }
+  .recent a::after { content: "›"; margin-left: auto; font-size: 28px; color: var(--sub); }
+
+  /* ---------- 天數導覽列 ---------- */
+  .daynav { position: sticky; top: 0; z-index: 5; margin: 0 -16px; padding: 10px 16px; background: color-mix(in srgb, var(--bg) 92%, transparent);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-bottom: 1px solid var(--line);
+    display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+  .daynav::-webkit-scrollbar { display: none; }
+  .pill { flex: 0 0 auto; min-height: 44px; padding: 4px 16px; border-radius: 999px; border: 2px solid var(--line); background: var(--paper);
+    font-weight: 700; font-size: 18px; cursor: pointer; white-space: nowrap; }
+  .pill[aria-current="true"] { background: var(--indigo); border-color: var(--indigo); color: var(--on-indigo); }
+
+  /* ---------- 輸入區 ---------- */
+  .examples { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .example { border: 1.5px dashed var(--line); background: transparent; border-radius: 12px; padding: 6px 12px; font-size: 17px; color: var(--sub); cursor: pointer; text-align: left; }
+  .example:hover { border-color: var(--indigo-2); color: var(--ink); }
+  .hint { color: var(--sub); font-size: 17px; margin-top: 10px; }
+  .plan { display: flex; gap: 14px; align-items: center; margin-top: 16px; background: var(--soft); border-color: transparent; color: var(--soft-ink); }
+  .plan .big { font-size: 34px; }
+  .plan p { font-size: 17px; }
+
+  /* ---------- 時間軸 ---------- */
+  .day { margin-top: 30px; }
+  .day-head { display: flex; align-items: center; gap: 12px; }
+  .badge { flex: 0 0 auto; width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; font-size: 24px; font-weight: 800;
+    background: var(--indigo); color: var(--on-indigo); box-shadow: var(--shadow); }
+  .badge.zero { background: var(--soft); color: var(--soft-ink); font-size: 22px; }
+  .day-head h2 { font-size: 24px; line-height: 1.2; }
+  .day-head .count { color: var(--sub); font-size: 17px; }
+  .tip { margin: 10px 0 0 60px; padding: 8px 14px; border-radius: 12px; background: var(--soft); color: var(--soft-ink); font-size: 18px; }
+  .tl { list-style: none; margin: 10px 0 0; padding: 0; }
+  .it { display: grid; grid-template-columns: 62px 34px 1fr; gap: 0 4px; }
+  .it .t { text-align: right; padding-top: 16px; font-weight: 800; font-variant-numeric: tabular-nums; font-size: 18px; color: var(--ink); }
+  .it .t.none { color: transparent; }
+  .it .rail { position: relative; display: flex; justify-content: center; }
+  .it .rail::before { content: ""; position: absolute; top: 0; bottom: 0; width: 3px; background: var(--line); border-radius: 2px; }
+  .it:first-child .rail::before { top: 22px; }
+  .it:last-child .rail::before { bottom: calc(100% - 22px); }
+  .it:only-child .rail::before { display: none; }
+  .dot { position: relative; margin-top: 10px; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 16px;
+    background: var(--paper); border: 3px solid var(--kc, var(--k-place)); }
+  .it .body { margin: 4px 0 12px 6px; padding: 12px 14px 12px; background: var(--paper); border: 1px solid var(--line); border-left: 5px solid var(--kc, var(--k-place));
+    border-radius: 14px; box-shadow: var(--shadow); min-width: 0; }
+  .it[data-kind="flight"] { --kc: var(--k-flight); } .it[data-kind="transport"] { --kc: var(--k-transport); }
+  .it[data-kind="hotel"] { --kc: var(--k-hotel); } .it[data-kind="meal"] { --kc: var(--k-meal); }
+  .it[data-kind="place"] { --kc: var(--k-place); } .it[data-kind="other"] { --kc: var(--k-other); }
+  .name { font-size: 22px; font-weight: 800; line-height: 1.3; word-break: break-word; }
+  .note { margin-top: 6px; color: var(--sub); font-size: 18px; word-break: break-word; }
+  .acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .flash > .body { animation: flash 1.6s ease-out 1; }
+  @keyframes flash { 0%, 30% { background: var(--soft); box-shadow: 0 0 0 4px var(--red); } 100% { background: var(--paper); } }
+  .empty { margin: 10px 0 0 60px; padding: 14px; border: 2px dashed var(--line); border-radius: 14px; color: var(--sub); font-size: 18px; }
+
+  /* ---------- 編輯(底部面板) ---------- */
+  dialog { border: 0; padding: 0; background: transparent; max-width: none; max-height: none; width: 100%; color: var(--ink); }
+  dialog::backdrop { background: rgba(10, 8, 5, .55); }
+  dialog[open] { position: fixed; inset: auto 0 0 0; margin: 0; animation: up .18s ease-out; }
+  @keyframes up { from { transform: translateY(24px); opacity: 0; } }
+  .sheet { max-width: 760px; margin: 0 auto; background: var(--paper); border-radius: 24px 24px 0 0; padding: 12px 20px calc(24px + env(safe-area-inset-bottom)); box-shadow: 0 -10px 40px rgba(0, 0, 0, .25); }
+  .grab { width: 44px; height: 5px; border-radius: 3px; background: var(--line); margin: 0 auto 12px; }
+  .sheet h3 { font-size: 22px; margin-bottom: 4px; word-break: break-word; }
+  .sheet .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .sheet .full { grid-column: 1 / -1; }
+  .sheet .actions { display: flex; gap: 10px; margin-top: 18px; }
+  .sheet .actions .btn { flex: 1; }
+  .danger { color: var(--red); border-color: var(--red); }
+
+  #toast { position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); max-width: 640px; margin: 0 auto; z-index: 30;
+    padding: 14px 18px; border-radius: 16px; background: var(--ink); color: var(--bg); box-shadow: var(--shadow); display: none; font-size: 18px; white-space: pre-line; }
+  #toast.err { background: var(--red); color: var(--on-red); }
+  footer { margin-top: 40px; text-align: center; color: var(--sub); font-size: 16px; }
+
+  @media (min-width: 600px) {
+    .hero { margin: 16px 0 0; border-radius: 28px 28px 0 0; }
+    .daynav { margin: 0; border-radius: 0 0 16px 16px; }
+  }
+  @media (max-width: 380px) {
+    .it { grid-template-columns: 52px 30px 1fr; } .name { font-size: 20px; } .sheet .grid { grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body>
-<main>
-  <section id="home" class="hidden">
-    <h1>家人旅行規劃</h1>
-    <p class="sub">把 Google 地圖的地點貼進來,AI 幫大家排行程。</p>
-    <div class="card">
-      <label for="newName">這趟旅行叫什麼?</label>
-      <input id="newName" value="日本旅行" maxlength="40">
-      <label for="newDays">玩幾天?</label>
-      <select id="newDays"></select>
-      <p><button class="primary" id="createBtn">開始規劃</button></p>
-    </div>
-    <div id="recentBox" class="hidden">
-      <h2>最近的行程</h2>
-      <ul class="recent" id="recent"></ul>
-    </div>
-  </section>
 
-  <section id="trip" class="hidden">
+<!-- ============ 首頁 ============ -->
+<div id="home" class="wrap hidden">
+  <header class="hero">
+    <div class="eyebrow">FAMILY TRIP</div>
+    <h1>一起規劃<br>下一趟旅行</h1>
+    <p>貼上 Google 地圖連結,或直接用說的,<br>AI 幫你排好每一天。</p>
+  </header>
+  <section class="card pull">
+    <label class="f" for="newName" style="margin-top:0">這趟旅行叫什麼?</label>
+    <input class="field" id="newName" value="日本旅行" maxlength="40" autocomplete="off">
+    <label class="f" for="newDays">玩幾天?</label>
+    <select class="field" id="newDays"></select>
+    <p style="margin-top:18px"><button class="btn primary block" id="createBtn">開始規劃</button></p>
+  </section>
+  <section id="recentBox" class="hidden">
+    <h2 class="section-title">最近的行程</h2>
+    <div class="recent" id="recent"></div>
+  </section>
+</div>
+
+<!-- ============ 行程頁 ============ -->
+<div id="trip" class="wrap hidden">
+  <header class="hero">
+    <div class="eyebrow">我們的旅行</div>
     <h1 id="tripName"></h1>
-    <p class="sub" id="tripMeta"></p>
+    <div class="chips"><span class="chip" id="chipDays"></span><span class="chip" id="chipItems"></span></div>
     <div class="row">
-      <button class="small" id="shareBtn">分享給家人</button>
-      <button class="small" id="renameBtn">改名稱/天數</button>
+      <button class="btn ghost small" id="shareBtn">📤 分享給家人</button>
+      <button class="btn ghost small" id="renameBtn">✏️ 名稱與天數</button>
     </div>
+  </header>
 
-    <h2>加入地點</h2>
-    <div class="card">
-      <label for="addText">貼上 Google 地圖連結,或直接打地點名稱</label>
-      <textarea id="addText" placeholder="例如:https://maps.app.goo.gl/…"></textarea>
-      <div class="row">
-        <button class="primary" id="addBtn">加入</button>
-        <button id="pasteBtn" class="hidden">貼上剪貼簿</button>
-      </div>
-      <p class="sub">在 Google 地圖按「分享」,複製連結,回到這裡貼上就可以。</p>
+  <nav class="daynav" id="daynav" aria-label="跳到某一天"></nav>
+
+  <section class="card" style="margin-top:16px">
+    <label class="f" for="addText" style="margin-top:0">想去哪?直接說,或貼上連結</label>
+    <textarea class="field" id="addText" rows="3" placeholder="貼上 Google 地圖連結&#10;或直接說:第一天13:00飛東京"></textarea>
+    <div class="row" style="margin-top:12px">
+      <button class="btn primary" id="addBtn" style="flex:1">加入行程</button>
+      <button class="btn" id="pasteBtn">貼上</button>
     </div>
-
-    <div class="row" style="margin-top:20px">
-      <button class="primary grow" id="planBtn">AI 幫我排行程</button>
+    <div class="examples" id="examples">
+      <button class="example" type="button">第一天13:00從台灣飛往東京</button>
+      <button class="example" type="button">最後一天13:00從東京飛往台灣</button>
+      <button class="example" type="button">第二天晚上7點吃壽司</button>
     </div>
-    <p class="sub">AI 會依距離分天、排順序,排完大家還是可以手動調整。</p>
-
-    <div id="days"></div>
+    <p class="hint">點上面的句子可以直接套用。在 Google 地圖按「分享」複製連結,回來貼上也行。</p>
   </section>
-</main>
+
+  <section class="card plan">
+    <div class="big" aria-hidden="true">✨</div>
+    <div style="flex:1">
+      <p style="font-weight:800;font-size:20px">讓 AI 幫你排</p>
+      <p>依距離把地點分到每一天;航班等已指定的行程不會動。</p>
+    </div>
+    <button class="btn hot" id="planBtn">開始排</button>
+  </section>
+
+  <main id="days"></main>
+
+  <footer>知道這個網址的人都能一起編輯,請只傳給家人。<br>畫面每幾秒自動更新。</footer>
+</div>
+
+<!-- 編輯(底部面板) -->
+<dialog id="sheet" aria-labelledby="sheetTitle">
+  <form method="dialog" class="sheet" id="sheetForm">
+    <div class="grab" aria-hidden="true"></div>
+    <h3 id="sheetTitle"></h3>
+    <div class="grid">
+      <div><label class="f" for="sTime">時間</label><input class="field" type="time" id="sTime"></div>
+      <div><label class="f" for="sDay">哪一天</label><select class="field" id="sDay"></select></div>
+      <div class="full"><label class="f" for="sName">名稱</label><input class="field" id="sName" maxlength="80"></div>
+      <div class="full"><label class="f" for="sNote">備註(例如:要預約、幾點開門)</label><input class="field" id="sNote" maxlength="300"></div>
+    </div>
+    <div class="actions">
+      <button class="btn danger" type="button" id="sDel">刪除</button>
+      <button class="btn" value="cancel">取消</button>
+      <button class="btn primary" type="button" id="sSave">儲存</button>
+    </div>
+  </form>
+</dialog>
+
 <div id="toast" role="status" aria-live="polite"></div>
 
 <script>
@@ -108,6 +245,8 @@ const $ = (id) => document.getElementById(id);
 const tripId = new URLSearchParams(location.search).get('t');
 let trip = null;
 let busy = false;
+
+const KIND_ICON = { flight: '✈️', transport: '🚆', hotel: '🏨', meal: '🍽️', place: '📍', other: '📌' };
 
 // ---- localStorage(失敗就當沒有)----
 const store = {
@@ -119,7 +258,7 @@ function toast(msg, isErr) {
   const t = $('toast');
   t.textContent = msg; t.className = isErr ? 'err' : ''; t.style.display = 'block';
   clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => { t.style.display = 'none'; }, isErr ? 6000 : 2500);
+  toast.timer = setTimeout(() => { t.style.display = 'none'; }, isErr ? 7000 : 4500);
 }
 
 async function api(method, path, body) {
@@ -136,15 +275,16 @@ async function api(method, path, body) {
 function el(tag, props, ...kids) {
   const n = document.createElement(tag);
   for (const [k, v] of Object.entries(props || {})) {
+    if (v == null || v === false) continue;
     if (k === 'class') n.className = v;
     else if (k.startsWith('on')) n.addEventListener(k.slice(2), v);
-    else if (v != null) n.setAttribute(k, v);
+    else n.setAttribute(k, v === true ? '' : v);
   }
   for (const k of kids.flat()) if (k != null) n.append(k);
   return n;
 }
 
-// ---- 首頁 ----
+// ================= 首頁 =================
 function showHome() {
   $('home').classList.remove('hidden');
   const sel = $('newDays');
@@ -153,7 +293,7 @@ function showHome() {
   const recent = store.get('recent', []);
   if (recent.length) {
     $('recentBox').classList.remove('hidden');
-    for (const r of recent) $('recent').append(el('li', {}, el('a', { href: `/?t=${encodeURIComponent(r.id)}` }, r.name)));
+    for (const r of recent) $('recent').append(el('a', { href: `/?t=${encodeURIComponent(r.id)}` }, '🧳 ' + r.name));
   }
   $('createBtn').onclick = async () => {
     $('createBtn').disabled = true;
@@ -164,7 +304,7 @@ function showHome() {
   };
 }
 
-// ---- 行程頁 ----
+// ================= 行程頁 =================
 function rememberTrip() {
   const recent = store.get('recent', []).filter((r) => r.id !== trip.id);
   recent.unshift({ id: trip.id, name: trip.name });
@@ -173,6 +313,7 @@ function rememberTrip() {
 
 function navUrl(it) {
   if (it.url) return it.url;
+  if (it.kind === 'flight' || it.kind === 'transport') return null;
   const q = it.lat != null ? `${it.lat},${it.lng}` : it.name;
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
 }
@@ -183,10 +324,10 @@ function groups() {
   return g;
 }
 
-async function saveLayout(g) {
+function saveLayout(g) {
   const layout = {};
   g.forEach((arr, d) => { layout[d] = arr.map((i) => i.id); });
-  await run(() => api('PUT', `/${tripId}/layout`, { layout }));
+  return run(() => api('PUT', `/${tripId}/layout`, { layout }));
 }
 
 function moveWithin(day, idx, delta) {
@@ -197,51 +338,69 @@ function moveWithin(day, idx, delta) {
   return saveLayout(g);
 }
 
-function moveToDay(it, day) {
-  const g = groups();
-  g[it.day] = g[it.day].filter((x) => x.id !== it.id);
-  g[day].push(it);
-  return saveLayout(g);
-}
-
-function itemCard(it, day, idx, count) {
-  const sel = el('select', { 'aria-label': `把「${it.name}」移到` },
-    el('option', { value: 0 }, '尚未安排'),
-    ...Array.from({ length: trip.days }, (_, i) => el('option', { value: i + 1 }, `第 ${i + 1} 天`)));
-  sel.value = String(day);
-  sel.addEventListener('change', () => moveToDay(it, +sel.value));
-  sel.style.width = 'auto';
-
-  const card = el('div', { class: 'card' },
-    el('div', { class: 'item-name' }, it.name),
-    it.note ? el('div', { class: 'note' }, it.note) : null,
-    el('div', { class: 'row', style: 'margin-top:10px' },
-      el('a', { class: 'nav', href: navUrl(it), target: '_blank', rel: 'noopener' }, '用地圖導航'),
-      day > 0 ? el('button', { class: 'small', disabled: idx === 0 ? '' : null, onclick: () => moveWithin(day, idx, -1), 'aria-label': '往前移' }, '↑') : null,
-      day > 0 ? el('button', { class: 'small', disabled: idx === count - 1 ? '' : null, onclick: () => moveWithin(day, idx, 1), 'aria-label': '往後移' }, '↓') : null,
-      sel,
-      el('button', { class: 'small', onclick: () => editNote(it) }, it.note ? '改備註' : '加備註'),
-      el('button', { class: 'small', onclick: () => removeItem(it) }, '刪除')));
-  return card;
+function itemRow(it, day, idx, count) {
+  const nav = navUrl(it);
+  return el('li', { class: 'it', 'data-id': it.id, 'data-kind': it.kind || 'place' },
+    el('div', { class: 't' + (it.time ? '' : ' none') }, it.time || '--:--'),
+    el('div', { class: 'rail' }, el('div', { class: 'dot', 'aria-hidden': 'true' }, KIND_ICON[it.kind] || KIND_ICON.place)),
+    el('div', { class: 'body' },
+      el('div', { class: 'name' }, it.name),
+      it.note ? el('div', { class: 'note' }, it.note) : null,
+      el('div', { class: 'acts' },
+        nav ? el('a', { class: 'btn small primary', href: nav, target: '_blank', rel: 'noopener' }, '🧭 導航') : null,
+        el('button', { class: 'btn small icon', disabled: idx === 0, 'aria-label': `把「${it.name}」往前移`, onclick: () => moveWithin(day, idx, -1) }, '↑'),
+        el('button', { class: 'btn small icon', disabled: idx === count - 1, 'aria-label': `把「${it.name}」往後移`, onclick: () => moveWithin(day, idx, 1) }, '↓'),
+        el('button', { class: 'btn small', onclick: () => openSheet(it) }, '✏️ 編輯'))));
 }
 
 function render() {
   $('tripName').textContent = trip.name;
   document.title = trip.name + ' - 家人旅行規劃';
-  $('tripMeta').textContent = `共 ${trip.days} 天,${trip.items.length} 個地點`;
+  $('chipDays').textContent = `🗓 ${trip.days} 天`;
+  $('chipItems').textContent = `📍 ${trip.items.length} 個項目`;
+
   const g = groups();
   const box = $('days');
   box.replaceChildren();
-  const section = (label, day) => {
+  const section = (day) => {
     const arr = g[day];
-    const nodes = [el('h2', {}, label)];
-    if (day > 0 && trip.tips[day]) nodes.push(el('div', { class: 'tip' }, '💡 ' + trip.tips[day]));
-    if (!arr.length) nodes.push(el('div', { class: 'empty' }, day === 0 ? '沒有待安排的地點' : '這天還沒有地點'));
-    arr.forEach((it, i) => nodes.push(itemCard(it, day, i, arr.length)));
-    box.append(...nodes);
+    const head = el('div', { class: 'day-head' },
+      el('div', { class: 'badge' + (day === 0 ? ' zero' : ''), 'aria-hidden': 'true' }, day === 0 ? '📥' : String(day)),
+      el('div', {}, el('h2', {}, day === 0 ? '還沒安排' : `第 ${day} 天`), el('div', { class: 'count' }, arr.length ? `${arr.length} 個項目` : '尚無項目')));
+    const sec = el('section', { class: 'day', id: `day-${day}`, 'aria-label': day === 0 ? '還沒安排' : `第 ${day} 天` }, head);
+    if (day > 0 && trip.tips[day]) sec.append(el('div', { class: 'tip' }, '💡 ' + trip.tips[day]));
+    if (!arr.length) sec.append(el('div', { class: 'empty' }, day === 0 ? '想去的地方先丟進來,再按「開始排」。' : '這天還沒有安排,用上面的輸入框加入吧。'));
+    else sec.append(el('ol', { class: 'tl' }, arr.map((it, i) => itemRow(it, day, i, arr.length))));
+    box.append(sec);
   };
-  if (g[0].length || trip.items.length === 0) section('尚未安排', 0);
-  for (let d = 1; d <= trip.days; d++) section(`第 ${d} 天`, d);
+  if (g[0].length) section(0);
+  for (let d = 1; d <= trip.days; d++) section(d);
+
+  // 天數導覽列
+  const nav = $('daynav');
+  nav.replaceChildren(
+    ...(g[0].length ? [pill('📥 待排', 0)] : []),
+    ...Array.from({ length: trip.days }, (_, i) => pill(`第 ${i + 1} 天`, i + 1)));
+  observeDays();
+}
+
+function pill(label, day) {
+  return el('button', { class: 'pill', 'data-day': day, onclick: () => $(`day-${day}`)?.scrollIntoView({ block: 'start' }) }, label);
+}
+
+let io = null;
+function observeDays() {
+  io?.disconnect();
+  io = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (!e.isIntersecting) continue;
+      const day = e.target.id.replace('day-', '');
+      document.querySelectorAll('.pill').forEach((p) => p.setAttribute('aria-current', String(p.dataset.day === day)));
+      const cur = document.querySelector('.pill[aria-current="true"]');
+      cur?.scrollIntoView({ inline: 'center', block: 'nearest' });
+    }
+  }, { rootMargin: '-80px 0px -65% 0px' });
+  document.querySelectorAll('.day').forEach((s) => io.observe(s));
 }
 
 async function refresh(force) {
@@ -252,7 +411,7 @@ async function refresh(force) {
     rememberTrip();
     render();
   } catch (e) {
-    if (!trip) { toast(e.message, true); }
+    if (!trip) toast(e.message, true);
   }
 }
 
@@ -260,59 +419,100 @@ async function refresh(force) {
 async function run(fn, okMsg) {
   if (busy) return;
   busy = true;
-  try { await fn(); if (okMsg) toast(okMsg); }
+  try { const r = await fn(); if (okMsg) toast(okMsg); return r; }
   catch (e) { toast(e.message, true); }
   finally { busy = false; await refresh(true); }
 }
 
-function editNote(it) {
-  const v = prompt(`「${it.name}」的備註(例如:要預約、幾點開門)`, it.note || '');
-  if (v === null) return;
-  run(() => api('PATCH', `/${tripId}/items/${it.id}`, { note: v }));
+// ---- 編輯面板 ----
+let editing = null;
+function openSheet(it) {
+  editing = it;
+  $('sheetTitle').textContent = it.name;
+  $('sName').value = it.name;
+  $('sNote').value = it.note || '';
+  $('sTime').value = it.time || '';
+  const sel = $('sDay');
+  sel.replaceChildren(el('option', { value: 0 }, '還沒安排'), ...Array.from({ length: trip.days }, (_, i) => el('option', { value: i + 1 }, `第 ${i + 1} 天`)));
+  sel.value = String(it.day);
+  $('sheet').showModal();
 }
 
-function removeItem(it) {
-  if (!confirm(`確定要刪除「${it.name}」嗎?`)) return;
-  run(() => api('DELETE', `/${tripId}/items/${it.id}`));
+function dayLabel(d) { return d ? `第 ${d} 天` : '還沒安排'; }
+
+function setupSheet() {
+  $('sSave').onclick = async () => {
+    const it = editing; if (!it) return;
+    $('sheet').close();
+    const newDay = +$('sDay').value;
+    await run(async () => {
+      await api('PATCH', `/${tripId}/items/${it.id}`, { name: $('sName').value, note: $('sNote').value, time: $('sTime').value });
+      if (newDay !== it.day) {
+        const g = groups().map((arr) => arr.filter((x) => x.id !== it.id));
+        g[newDay].push(it);
+        const layout = {}; g.forEach((arr, d) => { layout[d] = arr.map((i) => i.id); });
+        await api('PUT', `/${tripId}/layout`, { layout });
+      }
+    }, newDay !== it.day ? `已移到${dayLabel(newDay)}` : '已儲存');
+  };
+  $('sDel').onclick = async () => {
+    const it = editing; if (!it) return;
+    if (!confirm(`確定要刪除「${it.name}」嗎?`)) return;
+    $('sheet').close();
+    await run(() => api('DELETE', `/${tripId}/items/${it.id}`), '已刪除');
+  };
+  $('sheet').addEventListener('click', (e) => { if (e.target === $('sheet')) $('sheet').close(); }); // 點背景關閉
+}
+
+function flash(id) {
+  const li = document.querySelector(`.it[data-id="${CSS.escape(id)}"]`);
+  if (!li) return;
+  li.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  li.classList.add('flash');
+  setTimeout(() => li.classList.remove('flash'), 1800);
 }
 
 function showTrip() {
   $('trip').classList.remove('hidden');
-  const nameKey = 'who';
+  setupSheet();
 
-  $('addBtn').onclick = () => {
+  $('addBtn').onclick = async () => {
     const text = $('addText').value.trim();
-    if (!text) { toast('請先貼上連結或打地點名稱', true); return; }
-    run(async () => {
-      const r = await api('POST', `/${tripId}/items`, { text, who: store.get(nameKey, '') });
-      $('addText').value = '';
-      toast(`已加入:${r.name}`);
-    });
+    if (!text) { toast('請先輸入想去的地方,或貼上連結', true); $('addText').focus(); return; }
+    const r = await run(() => api('POST', `/${tripId}/add`, { text }));
+    if (!r) return;
+    $('addText').value = '';
+    const lines = r.added.map((a) => `・${a.day ? `第 ${a.day} 天 ` : ''}${a.time ? a.time + ' ' : ''}${a.name}${a.badDay ? `(第 ${a.badDay} 天超出行程,先放在「還沒安排」)` : ''}`);
+    toast(`已加入 ${r.added.length} 筆\n${lines.join('\n')}`);
+    flash(r.added[0].id);
   };
 
+  document.querySelectorAll('.example').forEach((b) => b.addEventListener('click', () => {
+    const box = $('addText');
+    box.value = box.value ? box.value.replace(/\s*$/, ',') + b.textContent : b.textContent;
+    box.focus();
+  }));
+
   if (navigator.clipboard && navigator.clipboard.readText) {
-    $('pasteBtn').classList.remove('hidden');
     $('pasteBtn').onclick = async () => {
       try { $('addText').value = await navigator.clipboard.readText(); } catch { toast('無法讀取剪貼簿,請長按輸入框貼上', true); }
     };
-  }
+  } else $('pasteBtn').classList.add('hidden');
 
-  $('planBtn').onclick = () => {
+  $('planBtn').onclick = async () => {
     if (!trip.items.length) { toast('請先加入一些地點', true); return; }
-    const arranged = trip.items.some((i) => i.day > 0);
-    if (arranged && !confirm('這會重新排列所有地點,確定嗎?')) return;
-    $('planBtn').textContent = 'AI 排行程中…請稍等';
-    run(async () => {
+    if (trip.items.some((i) => i.day > 0 && !i.fixed) && !confirm('這會重新排列沒有指定天數的地點,確定嗎?')) return;
+    const b = $('planBtn'); b.textContent = '排行程中…'; b.disabled = true;
+    await run(async () => {
       const r = await api('POST', `/${tripId}/plan`);
-      toast(r.usedAi ? 'AI 排好了,可以再手動調整' : 'AI 暫時沒回應,已先依距離幫你排好');
-    }).finally(() => { $('planBtn').textContent = 'AI 幫我排行程'; });
+      toast(r.usedAi ? '✨ AI 排好了,可以再手動調整' : 'AI 暫時沒回應,已先依距離幫你排好');
+    });
+    b.textContent = '開始排'; b.disabled = false;
   };
 
   $('shareBtn').onclick = async () => {
     const link = location.href;
-    try {
-      if (navigator.share) { await navigator.share({ title: trip.name, text: '一起來排旅行', url: link }); return; }
-    } catch { return; /* 使用者取消 */ }
+    try { if (navigator.share) { await navigator.share({ title: trip.name, text: '一起來排旅行', url: link }); return; } } catch { return; }
     try { await navigator.clipboard.writeText(link); toast('連結已複製,可以貼到 LINE 給家人'); }
     catch { prompt('請複製這個連結傳給家人:', link); }
   };
@@ -326,8 +526,8 @@ function showTrip() {
   };
 
   refresh(true);
-  // 家人同時編輯:每 4 秒看一次有沒有新版本(只有版本號,很省流量)
-  setInterval(() => { if (!document.hidden && !busy) refresh(false); }, 4000);
+  // 家人同時編輯:每 4 秒看一次有沒有新版本(只比對版本號,很省流量)
+  setInterval(() => { if (!document.hidden && !busy && !$('sheet').open) refresh(false); }, 4000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(false); });
 }
 

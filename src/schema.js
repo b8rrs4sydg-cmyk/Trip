@@ -19,16 +19,35 @@ const STATEMENTS = [
     lng REAL,
     url TEXT,
     note TEXT NOT NULL DEFAULT '',
-    added_by TEXT NOT NULL DEFAULT ''
+    added_by TEXT NOT NULL DEFAULT '',
+    time TEXT,
+    kind TEXT NOT NULL DEFAULT 'place',
+    fixed INTEGER NOT NULL DEFAULT 0
   )`,
   'CREATE INDEX IF NOT EXISTS items_trip ON items(trip_id, day, position)',
 ];
+
+// 舊版資料庫(沒有這些欄位)自動補上
+const ADDED_COLUMNS = [
+  ['time', 'TEXT'],
+  ['kind', "TEXT NOT NULL DEFAULT 'place'"],
+  ['fixed', 'INTEGER NOT NULL DEFAULT 0'],
+];
+
+async function init(env) {
+  await env.DB.batch(STATEMENTS.map((s) => env.DB.prepare(s)));
+  const { results } = await env.DB.prepare("SELECT name FROM pragma_table_info('items')").all();
+  const have = new Set(results.map((r) => r.name));
+  for (const [name, def] of ADDED_COLUMNS) {
+    if (!have.has(name)) await env.DB.prepare(`ALTER TABLE items ADD COLUMN ${name} ${def}`).run();
+  }
+}
 
 let ready = null;
 
 export function ensureSchema(env) {
   // 同一個 isolate 只做一次;失敗時清掉,下次請求再試
-  ready ??= env.DB.batch(STATEMENTS.map((s) => env.DB.prepare(s))).catch((e) => {
+  ready ??= init(env).catch((e) => {
     ready = null;
     throw e;
   });

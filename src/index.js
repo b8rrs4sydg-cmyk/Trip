@@ -1,9 +1,12 @@
-import { importPlace } from './maps.js';
+import { importPlace, extractUrl } from './maps.js';
 import { planTrip } from './plan.js';
 import { ensureSchema } from './schema.js';
+import { insertIndex, mergeFixed } from './schedule.js';
+import { findDay, findTime, hasScheduleCue, parseNaturalLanguage, KINDS } from './nl.js';
 
-const MAX_ITEMS = 60;
+const MAX_ITEMS = 80;
 const ALPHABET = 'abcdefghijkmnpqrstuvwxyz23456789'; // 去掉容易混淆的 l o 0 1
+const TIME_RE = /^([01]?\d|2[0-3]):[0-5]\d$/;
 
 const json = (data, status = 200) => Response.json(data, { status, headers: { 'cache-control': 'no-store' } });
 const fail = (msg, status = 400) => json({ error: msg }, status);
@@ -19,11 +22,13 @@ const int = (v, lo, hi, d) => {
   return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d;
 };
 
+const ITEM_COLS = 'id, day, position, name, lat, lng, url, note, added_by, time, kind, fixed';
+
 async function loadTrip(env, id) {
   const trip = await env.DB.prepare('SELECT * FROM trips WHERE id = ?').bind(id).first();
   if (!trip) return null;
   const { results } = await env.DB.prepare(
-    'SELECT id, day, position, name, lat, lng, url, note, added_by FROM items WHERE trip_id = ? ORDER BY day, position',
+    `SELECT ${ITEM_COLS} FROM items WHERE trip_id = ? ORDER BY day, position`,
   ).bind(id).all();
   let tips = {};
   try { tips = JSON.parse(trip.tips); } catch { /* 壞資料就當沒有 */ }
@@ -32,7 +37,7 @@ async function loadTrip(env, id) {
 
 const bump = (env, id) => env.DB.prepare('UPDATE trips SET version = version + 1 WHERE id = ?').bind(id);
 
-// 依 layout 重寫所有項目的 day/position。layout: { "0": [id...], "1": [id...] }
+// 依 layout 重寫項目的 day/position。layout: { "0": [id...], "1": [id...] }
 function layoutStatements(env, tripId, layout) {
   const stmts = [];
   for (const [day, ids] of Object.entries(layout)) {
@@ -40,6 +45,61 @@ function layoutStatements(env, tripId, layout) {
       stmts.push(env.DB.prepare('UPDATE items SET day = ?, position = ? WHERE id = ? AND trip_id = ?').bind(+day, pos, id, tripId)));
   }
   return stmts;
+}
+
+// 新增一個項目到指定天的合適位置(依時間規則),回傳新 id
+async function insertItem(env, tripId, nDays, e) {
+  const id = crypto.randomUUID();
+  const { results } = await env.DB.prepare(
+    'SELECT id, time, kind FROM items WHERE trip_id = ? AND day = ? ORDER BY position',
+  ).bind(tripId, e.day).all();
+  const idx = e.day > 0 ? insertIndex(results, e, e.day, nDays) : results.length;
+  const order = results.map((r) => r.id);
+  order.splice(idx, 0, id);
+  await env.DB.batch([
+    env.DB.prepare(
+      `INSERT INTO items (id, trip_id, day, position, name, lat, lng, url, note, added_by, time, kind, fixed)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).bind(id, tripId, e.day, idx, e.name, e.lat ?? null, e.lng ?? null, e.url ?? null, e.note ?? '', e.who ?? '',
+      e.time ?? null, KINDS.includes(e.kind) ? e.kind : 'place', e.day > 0 && e.fixed ? 1 : 0),
+    ...layoutStatements(env, tripId, { [e.day]: order }),
+    bump(env, tripId),
+  ]);
+  return id;
+}
+
+// 「加入」:貼連結 → 匯入地點;用說的 → AI 拆成多筆行程。回傳新增的項目摘要。
+async function smartAdd(env, tripId, nDays, text, who) {
+  const { url } = extractUrl(text);
+
+  if (url) {
+    // 連結前後的文字可能帶有「第二天 14:00」,先取出來
+    const d = findDay(text, nDays);
+    const t = findTime(text);
+    let rest = text;
+    for (const tok of [d?.text, t?.text]) if (tok) rest = rest.replace(tok, ' ');
+    const place = await importPlace(rest);
+    if (!place.name) throw new Error('讀不到地點名稱,請改貼「分享」的連結,或直接輸入地點名稱');
+    const day = d?.day && d.day <= nDays ? d.day : 0;
+    const e = { ...place, day, time: t?.time ?? null, kind: 'place', fixed: day > 0, who };
+    return [{ id: await insertItem(env, tripId, nDays, e), name: place.name, day, time: e.time }];
+  }
+
+  if (!hasScheduleCue(text) && text.length <= 30) {
+    const id = await insertItem(env, tripId, nDays, { name: text, day: 0, kind: 'place', who });
+    return [{ id, name: text, day: 0, time: null }];
+  }
+
+  const { entries } = await parseNaturalLanguage(env, text, nDays);
+  if (!entries.length) throw new Error('看不懂這句話,可以換個說法,例如「第一天13:00從台灣飛往東京」');
+  const added = [];
+  for (const e of entries) {
+    const id = await insertItem(env, tripId, nDays, {
+      name: e.title, note: e.note, day: e.day, time: e.time, kind: e.kind, fixed: e.day > 0, who,
+    });
+    added.push({ id, name: e.title, day: e.day, time: e.time, badDay: e.badDay });
+  }
+  return added;
 }
 
 async function handle(request, env) {
@@ -82,43 +142,44 @@ async function handle(request, env) {
     const name = clean(body.name, 40);
     const days = body.days != null ? int(body.days, 1, 14, exists.days) : exists.days;
     const stmts = [env.DB.prepare('UPDATE trips SET name = COALESCE(NULLIF(?, \'\'), name), days = ? WHERE id = ?').bind(name, days, tripId)];
-    // 天數縮短時,超出的項目退回「尚未安排」
-    if (days < exists.days) // position 加大是為了排在原本「尚未安排」的項目後面,且保持彼此順序
-    if (days < exists.days) stmts.push(env.DB.prepare('UPDATE items SET day = 0, position = position + 10000 WHERE trip_id = ? AND day > ?').bind(tripId, days));
+    // 天數縮短時,超出的項目退回「尚未安排」;position 加大是為了排在原本「尚未安排」的項目後面,且保持彼此順序
+    if (days < exists.days) stmts.push(env.DB.prepare('UPDATE items SET day = 0, fixed = 0, position = position + 10000 WHERE trip_id = ? AND day > ?').bind(tripId, days));
     stmts.push(bump(env, tripId));
     await env.DB.batch(stmts);
     return json({ ok: true });
   }
 
-  // 加入地點(貼 Google Maps 連結或文字)
-  if (parts[3] === 'items' && parts.length === 4 && method === 'POST') {
+  // 加入:貼連結、打地點名稱、或用自然語言描述行程
+  if (parts[3] === 'add' && parts.length === 4 && method === 'POST') {
     const body = await request.json().catch(() => ({}));
-    const text = clean(body.text, 600);
-    if (!text) return fail('請貼上地點或連結');
+    const text = clean(body.text, 800);
+    if (!text) return fail('請先輸入想去的地方,或貼上連結');
     const cnt = await env.DB.prepare('SELECT COUNT(*) AS n FROM items WHERE trip_id = ?').bind(tripId).first();
-    if (cnt.n >= MAX_ITEMS) return fail('地點太多了,請先刪除一些');
-    let place;
-    try { place = await importPlace(text); } catch (e) { return fail(e.message || '連結無法讀取'); }
-    if (!place.name) return fail('讀不到地點名稱,請改貼「分享」的連結,或直接輸入地點名稱');
-    const id = crypto.randomUUID();
-    const last = await env.DB.prepare('SELECT COALESCE(MAX(position), -1) + 1 AS p FROM items WHERE trip_id = ? AND day = 0').bind(tripId).first();
-    await env.DB.batch([
-      env.DB.prepare('INSERT INTO items (id, trip_id, day, position, name, lat, lng, url, added_by) VALUES (?, ?, 0, ?, ?, ?, ?, ?, ?)')
-        .bind(id, tripId, last.p, place.name, place.lat, place.lng, place.url, clean(body.who, 20)),
-      bump(env, tripId),
-    ]);
-    return json({ id, name: place.name });
+    if (cnt.n >= MAX_ITEMS) return fail('項目太多了,請先刪除一些');
+    try {
+      const added = await smartAdd(env, tripId, exists.days, text, clean(body.who, 20));
+      return json({ added });
+    } catch (e) {
+      return fail(e.message || '無法加入,請再試一次');
+    }
   }
 
-  // 改單一項目:名稱、備註
+  // 改單一項目:名稱、備註、時間
   if (parts[3] === 'items' && parts.length === 5 && method === 'PATCH') {
     const body = await request.json().catch(() => ({}));
+    let time;
+    if (body.time === undefined) time = undefined;
+    else if (body.time === '' || body.time === null) time = null;
+    else if (TIME_RE.test(String(body.time))) time = String(body.time).padStart(5, '0');
+    else return fail('時間格式不對');
+    const sets = ['name = COALESCE(NULLIF(?, \'\'), name)', 'note = COALESCE(?, note)'];
+    const args = [clean(body.name, 80), body.note != null ? clean(body.note, 300) : null];
+    if (time !== undefined) { sets.push('time = ?'); args.push(time); }
     const r = await env.DB.batch([
-      env.DB.prepare('UPDATE items SET name = COALESCE(NULLIF(?, \'\'), name), note = COALESCE(?, note) WHERE id = ? AND trip_id = ?')
-        .bind(clean(body.name, 80), body.note != null ? clean(body.note, 300) : null, parts[4], tripId),
+      env.DB.prepare(`UPDATE items SET ${sets.join(', ')} WHERE id = ? AND trip_id = ?`).bind(...args, parts[4], tripId),
       bump(env, tripId),
     ]);
-    return r[0].meta.changes ? json({ ok: true }) : fail('找不到這個地點', 404);
+    return r[0].meta.changes ? json({ ok: true }) : fail('找不到這個項目', 404);
   }
 
   if (parts[3] === 'items' && parts.length === 5 && method === 'DELETE') {
@@ -129,7 +190,7 @@ async function handle(request, env) {
     return json({ ok: true });
   }
 
-  // 整份排列(拖曳/移到某天/上移下移,前端算好整份送上來)
+  // 整份排列(上移下移/移到某天,前端算好整份送上來)
   if (parts[3] === 'layout' && method === 'PUT') {
     const body = await request.json().catch(() => ({}));
     const layout = body.layout;
@@ -150,12 +211,18 @@ async function handle(request, env) {
     return json({ ok: true });
   }
 
-  // AI 排行程
+  // AI 排行程:指定過天數的項目(航班等)不動,其餘交給 AI 分天
   if (parts[3] === 'plan' && method === 'POST') {
-    const { results } = await env.DB.prepare('SELECT id, name, lat, lng FROM items WHERE trip_id = ?').bind(tripId).all();
-    const plan = await planTrip(env, results, exists.days);
+    const { results } = await env.DB.prepare(
+      'SELECT id, name, lat, lng, day, time, kind, fixed FROM items WHERE trip_id = ?',
+    ).bind(tripId).all();
+    const fixed = results.filter((r) => r.fixed && r.day > 0);
+    const movable = results.filter((r) => !(r.fixed && r.day > 0));
+    const plan = await planTrip(env, movable, exists.days, fixed);
+    const byId = new Map(results.map((r) => [r.id, r]));
+    const merged = mergeFixed(plan.days.map((ids) => ids.map((id) => byId.get(id))), fixed);
     const layout = { 0: [] };
-    plan.days.forEach((ids, i) => { layout[i + 1] = ids; });
+    merged.forEach((items, i) => { layout[i + 1] = items.map((x) => x.id); });
     const tips = {};
     plan.tips.forEach((t, i) => { if (t) tips[i + 1] = t; });
     await env.DB.batch([
